@@ -1,0 +1,108 @@
+#!/bin/bash
+
+. shell_connector.bash
+
+SQLITE=/usr/bin/sqlite3
+
+#
+### Sample use: define some connectors for further use...
+#
+
+# instanciate a long-running bc command which we will then be
+# able to interact with with myBc().
+# Initialize them by declaring `mil` function, to compute
+# human readable, returning `A,XX.YYY` where A mean power of 1K
+# and XX.YYY is value divided by 1024**A.
+newConnector /usr/bin/bc "-l" 'mil(0)' '0,0' - <<-"EOF"
+    define void mil (s) {
+	if (s==0) { print "0,0\n"; return;};
+	p=l(s)/l(1024);
+	scale=0;
+	p=p/1;
+	scale=20;
+	print p,",",s/1024^p,"\n";
+	}
+	EOF
+
+# instanciate a long-running date command which we will then be able
+# to interact with with myDate(), convert date input to UnixTimeStamp.
+newConnector /bin/date '-f - +%s' @0 0
+
+# instanciate a long-running sqlite command with file based on /dev/shm
+# Interact with mySqlite
+
+# Test if sqlite is present
+if [ ! -x $SQLITE ];then
+    echo >&2 "Tool '$SQLITE' not found (please correct SQLITE var if installed)."
+    exit 1
+fi
+
+newSqlConnector $SQLITE "-separator $'\t' -header /dev/shm/test.sqlite"
+
+# mySqlite foo 'DROP TABLE IF EXISTS files;'
+# mySqlite foo 'CREATE TABLE files (perms,user,date UNSIGNED BIGINT,size UNSIGNED BIGINT,name);'
+cat >&$SQLIN <<-EOSQLInit
+	DROP TABLE IF EXISTS files;
+	CREATE TABLE files (perms, user, date UNSIGNED BIGINT,
+		size UNSIGNED BIGINT,name);
+	EOSQLInit
+
+declare -a ABR=(K M G T P)
+
+{
+    read headline
+    echo "dtot=0;duse=0;" >&$BCIN
+    while read filesystem type size used free prct mpoint;do
+	echo >&$BCIN "dtot+=$used+$free;duse+=$used;"
+	myBc "100*$used/($used+$free)" mpct
+	myBc "mil($used)" Used
+	myBc "mil($used+$free)" Total
+	printf "%-26s %-8s %7.2f%s %7.2f%s %9s %7.2f%%\n" "$mpoint" "$type" \
+	       ${Used#*,} ${ABR[${Used%,*}]} ${Total#*,} ${ABR[${Total%,*}]} \
+	       $prct $mpct
+    done
+} < <(LANG=C df -kT)
+
+myBc "mil(dtot)" Total
+myBc "mil(duse)" Used
+printf "%-36s%7.2f%s %7.2f%s\n" Total \
+       ${Used#*,} ${ABR[${Used%,*}]} ${Total#*,} ${ABR[${Total%,*}]}
+
+ABR=('' ${ABR[@]})
+echo "ftot=0;" >&$BCIN
+
+{
+    read headline
+    while read perm blk user group size month day yot name;do
+	echo >&$BCIN "ftot+=$size"
+	myDate "$month $day $yot" Date
+	echo >&$SQLIN "INSERT INTO files values('$perm','$user',$Date,$size,'$name');"
+#	myBc "mil($size)" Size
+#	printf " %-11s %-12s %(%F %H:%M)T  %7.2f%-2s  %s\n" $perm $user \
+#	       $Date ${Size#*,} ${ABR[${Size%,*}]}b "$name"
+    done
+} < <(LANG=C /bin/ls -l)
+
+mySqlite myarray "SELECT * from files order by date;"
+
+printf "%-12s %-12s %16s %10s  %s\n" "${myarray_h[@]}"
+for line in "${myarray[@]}";do
+    IFS=$'\t' read perm user date size name <<<"$line"
+    myBc "mil($size)" Size
+    printf " %-11s %-12s %(%F %H:%M)T  %7.2f%-2s  %s\n" $perm $user $date \
+	   ${Size#*,} ${ABR[${Size%,*}]}b "$name"
+    done
+myBc "mil(ftot)" Total
+
+mySqlite stot 'SELECT SUM(size) FROM files;'
+myBc "mil($stot)" STotal
+
+printf "%18sby bc:%7.2f%-2s,   by sql:%7.2f%-2s  %s\n" '' \
+       ${Total#*,} ${ABR[${Total%,*}]}b ${STotal#*,} ${ABR[${STotal%,*}]}b Total
+
+myBc ftot bctot
+[ "$bctot" = "$stot" ] || echo "Strange: '$bctot' and '$stot' don't match!"
+
+myDate now now
+printf "%-14s: %(%a %d %b %T)T\n" \
+       "Last SQL read" $lastsqlread "now by date" $now "now by bash" -1
