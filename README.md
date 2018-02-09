@@ -31,7 +31,9 @@ There is a function for building I/O connectors:
 
 And for tools able to answer *0* or *many* lines, like *SQL Clients*, there is another function:
 
-    newSqlConnector /usr/bin/mysql   "-h hostname -B -p database"
+    ostty=$(stty -g) && stty -echo
+    newSqlConnector /usr/bin/mysql "-h hostOrIp -p'$(head -n1)' -B database"
+    stty $ostty
     myMysql answer 'SELECT * FROM mytable;'
     declare -p answer_h answer
  
