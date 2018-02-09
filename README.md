@@ -29,3 +29,10 @@ There is a function for building I/O connectors:
     declare -p PI
     declare -- PI="3.14159265358979323844"
 
+And for tools able to answer *0* or *many* lines, like *SQL Clients*, there is another function:
+
+    newSqlConnector /usr/bin/mysql   "-h hostname -B -p database"
+    myMysql answer 'SELECT * FROM mytable;'
+    declare -p answer_h answer
+ 
+where both variables are *arrays*, first one `answer_h` will hole header of answer and `answer` is the complete answer.
