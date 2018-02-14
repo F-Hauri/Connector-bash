@@ -19,7 +19,7 @@ newConnector() {
     shift 4
     mkfifo $FIFO
     nextFd
-    eval "exec $fd> >(LANG=C stdbuf -o0 $command $args >$FIFO 2>&1) ; $cinfd=$fd;"
+    eval "exec $fd> >(LANG=C exec stdbuf -o0 $command $args >$FIFO 2>&1) ; $cinfd=$fd;"
     nextFd
     eval "exec $fd<$FIFO;$coutfd=$fd;"
     
@@ -65,7 +65,7 @@ newSqlConnector() {
     mkfifo $FIFOUT
     mkfifo $FIFERR
     nextFd
-    eval "exec $fd> >(stdbuf -o0 $command $args >$FIFOUT 2>$FIFERR)"
+    eval "exec $fd> >(exec stdbuf -o0 $command $args >$FIFOUT 2>$FIFERR)"
     SQLIN=$fd
     nextFd
     eval "exec $fd<$FIFOUT;"
