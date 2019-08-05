@@ -1,5 +1,13 @@
 # Connector-bash
 
+Copying:
+--------
+
+As bash, this stuff is licensed under GNU GPL v3.0 or later.
+
+Introduction:
+-------------
+
 In order to avoid multiple forks to some regular tools like `date`, `bc`
 and any *line-by-line* converter, based on
 
