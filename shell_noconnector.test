@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+# Same job than ``shell_connector.test'' but without *connectors*.
+# For comparission.
+
+SQLITE=/usr/bin/sqlite3
+
+ABR=(K M G T P)
+human () { 
+    local ind=0 val=0;
+    (($1)) && { 
+        read ind
+        read val
+    } < <(
+	bc -l <<<"p=l($1)/l(1024);scale=0;p=p/1;scale=20;p;$1/1024^p;"
+    )
+    printf ${2+-v} $2 "%.2f%s" $val ${ABR[ind]}
+}
+
+SQLITEDB=/dev/shm/test.sqlite
+
+$SQLITE $SQLITEDB <<-EOSQLInit
+	DROP TABLE IF EXISTS files;
+	CREATE TABLE files (perms, user, date UNSIGNED BIGINT,
+		size UNSIGNED BIGINT,name);
+	EOSQLInit
+
+{
+    read headline
+    dtot=0 duse=0
+    while read filesystem type size used free prct mpoint;do
+	((dtot+=used+free,duse+=used))
+	mpct=$(bc -l <<< "100*$used/($used+$free)") 
+	human "$used" Used
+	human "($used+$free)" Total
+	printf "%-26s %-8s %8s %8s %9s %7.2f%%\n" "$mpoint" "$type" \
+	       $Used $Total  $prct $mpct
+    done
+} < <(LANG=C df -kT)
+
+human "$dtot" Total
+human "$duse" Used
+printf "%-36s%8s %8s\n" Total $Used $Total
+
+ABR=('' ${ABR[@]})
+ftot=0
+
+{
+    read headline
+    while read perm blk user group size month day yot name;do
+	((ftot+=size))
+	Date=$(date +%s -d "$month $day $yot")
+	$SQLITE $SQLITEDB <<<"INSERT INTO files values(
+                               '$perm','$user',$Date,$size,'$name');"
+    done
+} < <(LANG=C /bin/ls -l)
+
+{
+    IFS=$'\t' read -a header
+    printf "%-12s %-12s %16s %10s  %s\n" "${header[@]}"
+    while IFS=$'\t' read perm user date size name ;do
+	human $size Size
+	printf " %-11s %-12s %(%F %H:%M)T  %9s  %s\n" $perm $user $date \
+	       ${Size}b "$name"
+    done
+} < <(
+    $SQLITE -separator $'\t' -header $SQLITEDB <<-EOF
+    	    SELECT * from files order by date
+	EOF
+)
+
+human "$ftot" Total
+
+{
+    read stot
+    read lastsqlread
+} < <(
+    $SQLITE $SQLITEDB <<-EOF
+    	SELECT SUM(size) FROM files;
+	SELECT STRFTIME('%s',DATETIME('now'));
+	EOF
+)
+
+human "$stot" STotal
+printf "%18sby shell:%8sb,   by sql:%8sb  %s\n" '' \
+       $Total $STotal Total
+
+[ "$ftot" = "$stot" ] || echo "Strange: '$ftot' and '$stot' don't match!"
+
+
+now=$(date +%s)
+printf "%-14s: %(%a %d %b %T)T\n" \
+       "Last SQL read" $lastsqlread "now by date" $now "now by bash" -1
+
+sid=$(ps ho sid $$)
+ps --sid $sid fw
