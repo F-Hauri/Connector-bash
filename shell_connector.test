@@ -1,6 +1,8 @@
 #!/bin/bash
 
-. shell_connector.bash
+SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+. $SRCDIR/shell_connector.bash
 
 SQLITE=/usr/bin/sqlite3
 
@@ -39,8 +41,6 @@ fi
 
 newSqlConnector $SQLITE "-separator $'\t' -header /dev/shm/test.sqlite"
 
-# mySqlite foo 'DROP TABLE IF EXISTS files;'
-# mySqlite foo 'CREATE TABLE files (perms,user,date UNSIGNED BIGINT,size UNSIGNED BIGINT,name);'
 cat >&$SQLIN <<-EOSQLInit
 	DROP TABLE IF EXISTS files;
 	CREATE TABLE files (perms, user, date UNSIGNED BIGINT,
@@ -77,9 +77,6 @@ echo "ftot=0;" >&$BCIN
 	echo >&$BCIN "ftot+=$size"
 	myDate "$month $day $yot" Date
 	echo >&$SQLIN "INSERT INTO files values('$perm','$user',$Date,$size,'$name');"
-#	myBc "mil($size)" Size
-#	printf " %-11s %-12s %(%F %H:%M)T  %7.2f%-2s  %s\n" $perm $user \
-#	       $Date ${Size#*,} ${ABR[${Size%,*}]}b "$name"
     done
 } < <(LANG=C /bin/ls -l)
 
