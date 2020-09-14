@@ -31,7 +31,7 @@ newConnector /usr/bin/bc "-l" 'mil(0)' '0,0' - <<-"EOF"
 newConnector /bin/date '-f - +%s' @0 0
 
 # instanciate a long-running sqlite command with file based on /dev/shm
-# Interact with mySqlite
+# Interact with mySqlReq
 
 # Test if sqlite is present
 if [ ! -x $SQLITE ];then
@@ -39,7 +39,7 @@ if [ ! -x $SQLITE ];then
     exit 1
 fi
 
-newSqlConnector $SQLITE "-separator $'\t' -header /dev/shm/test.sqlite"
+newSqlConnector $SQLITE $'-separator \t -header /dev/shm/test.sqlite'
 
 cat >&$SQLIN <<-EOSQLInit
 	DROP TABLE IF EXISTS files;
@@ -80,7 +80,7 @@ echo "ftot=0;" >&$BCIN
     done
 } < <(LANG=C /bin/ls -l)
 
-mySqlite myarray "SELECT * from files order by date;"
+mySqlReq myarray "SELECT * from files order by date;"
 
 printf "%-12s %-12s %16s %10s  %s\n" "${myarray_h[@]}"
 for line in "${myarray[@]}";do
@@ -91,7 +91,7 @@ for line in "${myarray[@]}";do
     done
 myBc "mil(ftot)" Total
 
-mySqlite stot 'SELECT SUM(size) FROM files;'
+mySqlReq stot 'SELECT SUM(size) FROM files;'
 myBc "mil($stot)" STotal
 
 printf "%18sby bc:%7.2f%-2s,   by sql:%7.2f%-2s  %s\n" '' \
