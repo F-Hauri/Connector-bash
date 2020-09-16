@@ -7,15 +7,14 @@ mkBound() {
     local _Bash64_refstr _out= _l _i _num
     printf -v _Bash64_refstr "%s" {0..9} {a..z} {A..Z} @ _ 0
     for ((_l=6;_num=(RANDOM<<15|RANDOM),_l--;));do
-        for ((_i=0;_i<30;_i+=6));do
-            _out+=${_Bash64_refstr:(_num>>_i)&63:1}
-        done
+	for ((_i=0;_i<30;_i+=6));do
+	    _out+=${_Bash64_refstr:(_num>>_i)&63:1}
+	done
     done
     printf -v result -- "--%s-%s-%s-%s-%s-%s-" ${_out:0:7} \
-           ${_out:7:4} ${_out:11:4} ${_out:15:4} \
-           ${_out:19:4} ${_out:23};
+	   ${_out:7:4} ${_out:11:4} ${_out:15:4} \
+	   ${_out:19:4} ${_out:23};
 }    
-
 # instanciator for myXxx() function associated to a started and long-running
 # instance of the requested command and arguments and initial input data
 # (the command will be associated to two descriptors XXIN and XXOUT, local to
@@ -47,7 +46,6 @@ newConnector() {
 	printf >&2 "WARNING: Don't match! '%s' <> '%s'.\n" "$verif" "$input"
 }
 
-
 # SQL Connector
 # Stronger, because output length is not fixed, could by empty.
 # this work with "sqlite", but also with "mysql", "mariadb" or "postgresql"
@@ -58,16 +56,20 @@ newSqlConnector() {
     local -n _sqlin=SQLIN _sqlout=SQLOUT
     mkBound bound
     case $cmd in
-        psql ) sqlreqbound='EXTRACT(\047EPOCH\047 FROM now())' ;;
-        mysql|mariadb ) sqlreqbound='UNIX_TIMESTAMP()' ;;
-        sqlite* ) sqlreqbound='STRFTIME(\047%%s\047,DATETIME(\047now\047))' ;;
-        * ) echo >&2 "WARNING '$cmd' not known as SQL client";;
+	psql ) sqlreqbound='EXTRACT(\047EPOCH\047 FROM now())' ;;
+	mysql|mariadb ) sqlreqbound='UNIX_TIMESTAMP()' ;;
+	sqlite* ) sqlreqbound='STRFTIME(\047%%s\047,DATETIME(\047now\047))' ;;
+	* ) echo >&2 "WARNING '$cmd' not known as SQL client";;
     esac
-    
+
     exec {SQLERR}<> <(: p)
     coproc stdbuf -o0 $command "${args[@]}" 2>&$SQLERR
     _sqlin=${COPROC[1]} _sqlout=$COPROC 
 }
+# newSqlConnector /usr/bin/sqlite3 $'-separator \t -header /dev/shm/test.sqlite'
+# newSqlConnector /usr/bin/psql $'-Anh hostname -F \t --pset=footer=off user'
+# newSqlConnector /usr/bin/mysql  '-h hostname -B -p database'
+
 mySqlReq() {
     # return nothing but set two (or tree if error) variables: `$1`, containing
     # sql answer and `${1}_h` containing header fields and ${1}_e for
@@ -97,7 +99,3 @@ mySqlReq() {
 	done
     fi
 }
-    
-# newSqlConnector /usr/bin/sqlite3 $'-separator \t -header /dev/shm/test.sqlite'
-# newSqlConnector /usr/bin/psql $'-Anh hostname -F \t --pset=footer=off user'
-# newSqlConnector /usr/bin/mysql  '-h hostname -B -p database'

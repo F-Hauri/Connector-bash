@@ -6,11 +6,18 @@ SRCDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 SQLITE=/usr/bin/sqlite3
 
-#
-### Sample use: define some connectors for further use...
-#
+###
+### Demo-sample: define/open 3 connectors to `bc`, `date` and `sqlite`,
+### for interactive use from main bash script.
+###
 
-# instanciate a long-running bc command which we will then be
+# Test if sqlite is present
+if [ ! -x $SQLITE ];then
+    echo >&2 "Tool '$SQLITE' not found (please correct SQLITE var if installed)."
+    exit 1
+fi
+
+# 1. instanciate a long-running bc command which we will then be
 # able to interact with with myBc().
 # Initialize them by declaring `mil` function, to compute
 # human readable, returning `A,XX.YYY` where A mean power of 1K
@@ -26,21 +33,16 @@ newConnector /usr/bin/bc "-l" 'mil(0)' '0,0' - <<-"EOF"
 	}
 	EOF
 
-# instanciate a long-running date command which we will then be able
+# 2. instanciate a long-running date command which we will then be able
 # to interact with with myDate(), convert date input to UnixTimeStamp.
 newConnector /bin/date '-f - +%s' @0 0
 
-# instanciate a long-running sqlite command with file based on /dev/shm
+# 3. instanciate a long-running sqlite command with file based on /dev/shm
 # Interact with mySqlReq
-
-# Test if sqlite is present
-if [ ! -x $SQLITE ];then
-    echo >&2 "Tool '$SQLITE' not found (please correct SQLITE var if installed)."
-    exit 1
-fi
 
 newSqlConnector $SQLITE $'-separator \t -header /dev/shm/test.sqlite'
 
+# Database initialisation...
 cat >&$SQLIN <<-EOSQLInit
 	DROP TABLE IF EXISTS files;
 	CREATE TABLE files (perms, user, date UNSIGNED BIGINT,
@@ -49,13 +51,14 @@ cat >&$SQLIN <<-EOSQLInit
 
 declare -a ABR=(K M G T P)
 
+# First: A simple demo using backgrounded `bc -l`
 {
     read headline
     echo "dtot=0;duse=0;" >&$BCIN
     while read filesystem type size used free prct mpoint;do
 	echo >&$BCIN "dtot+=$used+$free;duse+=$used;"
-	myBc "100*$used/($used+$free)" mpct
-	myBc "mil($used)" Used
+	myBc "100*$used/($used+$free)" mpct   # Compute % of use
+	myBc "mil($used)" Used                # Human readable form
 	myBc "mil($used+$free)" Total
 	printf "%-26s %-8s %7.2f%s %7.2f%s %9s %7.2f%%\n" "$mpoint" "$type" \
 	       ${Used#*,} ${ABR[${Used%,*}]} ${Total#*,} ${ABR[${Total%,*}]} \
@@ -68,41 +71,44 @@ myBc "mil(duse)" Used
 printf "%-36s%7.2f%s %7.2f%s\n" Total \
        ${Used#*,} ${ABR[${Used%,*}]} ${Total#*,} ${ABR[${Total%,*}]}
 
-ABR=('' ${ABR[@]})
-echo "ftot=0;" >&$BCIN
+# Prepare to work agains files
+ABR=('' ${ABR[@]})      # lowest is byte, not kb.
+echo "ftot=0;" >&$BCIN  # file size total = 0, but as BC variable
 
+# Let play with SQL
 {
     read headline
     while read perm blk user group size month day yot name;do
-	echo >&$BCIN "ftot+=$size"
-	myDate "$month $day $yot" Date
-	echo >&$SQLIN "INSERT INTO files values('$perm','$user',$Date,$size,'$name');"
+	echo >&$BCIN "ftot+=$size"  # Increment BC variable ftot.
+	myDate "$month $day $yot" Date  # Convert `ls` date format to EPOCH
+	printf >&$SQLIN "INSERT INTO files values('%s','%s',%s,%s,'%s');" \
+			"$perm" "$user" $Date $size "$name" # DB INSERT
     done
-} < <(LANG=C /bin/ls -l)
+} < <(LANG=C /bin/ls --full-time -Al)
 
-mySqlReq myarray "SELECT * from files order by date;"
+mySqlReq myarray "SELECT * from files order by date;" # DB SELECT files by date
 
-printf "%-12s %-12s %16s %10s  %s\n" "${myarray_h[@]}"
+printf "%-12s %-12s %16s %10s  %s\n" "${myarray_h[@]}" # print header
 for line in "${myarray[@]}";do
     IFS=$'\t' read perm user date size name <<<"$line"
     myBc "mil($size)" Size
     printf " %-11s %-12s %(%F %H:%M)T  %7.2f%-2s  %s\n" $perm $user $date \
 	   ${Size#*,} ${ABR[${Size%,*}]}b "$name"
     done
-myBc "mil(ftot)" Total
+myBc "mil(ftot)" Total   # Total computed by bc
 
-mySqlReq stot 'SELECT SUM(size) FROM files;'
-myBc "mil($stot)" STotal
+mySqlReq stot 'SELECT SUM(size) FROM files;'       # DB SELECT SUM of file size
+myBc "mil($stot)" STotal # Total computed by DB
 
 printf "%18sby bc:%7.2f%-2s,   by sql:%7.2f%-2s  %s\n" '' \
        ${Total#*,} ${ABR[${Total%,*}]}b ${STotal#*,} ${ABR[${STotal%,*}]}b Total
 
-myBc ftot bctot
-[ "$bctot" = "$stot" ] || echo "Strange: '$bctot' and '$stot' don't match!"
+myBc ftot bctot  # bc variable ftot to bash var bctot (hope BC and SQL match!)
+[ "$bctot" = "$stot" ] || echo "WARN: BC:'$bctot' and SQL:'$stot' don't match!"
 
-myDate now now
+myDate now now # Date from backgrounded date task
 printf "%-14s: %(%a %d %b %T)T\n" \
        "Last SQL read" $lastsqlread "now by date" $now "now by bash" -1
 
-sid=$(ps ho sid $$)
-ps --sid $sid fw
+mySid=$(ps ho sid $$)
+ps --sid $mySid fw
