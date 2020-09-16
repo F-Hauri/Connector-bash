@@ -33,13 +33,14 @@ newConnector() {
 	cat >&${cinfd} $initfile
     done
 
-    source <(echo "my${cmd^}() {
-		local -n result=\${2:-${cmd}Out}
-		echo >&\${${cmd^^}IN} \"\$1\" &&
-		read -u \${${cmd^^}OUT} -t 3 result
-		((\$#>1)) || echo \$result
-		}"
-	)
+    source /dev/stdin <<-EOF
+	my${cmd^}() {
+	    local -n result=\${2:-${cmd}Out}
+	    echo >&\${${cmd^^}IN} "\$1" &&
+	    read -u \${${cmd^^}OUT} -t 3 result
+	    ((\$#>1)) || echo \$result
+	}
+	EOF
 
     my${cmd^} $check input
     [ "$input" = "$verif" ] ||
