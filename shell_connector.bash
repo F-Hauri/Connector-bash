@@ -1,20 +1,36 @@
 #!/bin/bash
 
 mkBound() {
-    # Building some uniq 30 random char string from 12 $RANDOM values:
+    # Build some uniq 30 random char string from 12 $RANDOM values:
     # RANDOM is 15 bits. 15 x 2 = 30 bits -> 5 x 6 bits char
+
+    # Constants for boundary construction
+    local BOUNDARY_LENGTH=30
+    local BOUNDARY_ITERATIONS=6
+    local BOUNDARY_MASK=63
+    local BOUNDARY_SHIFT=6
+
+    # Named reference to output variable
     local -n result=${1:-bound}
+
+    # The string used for generating the boundary
     local _Bash64_refstr _out= _l _i _num
     printf -v _Bash64_refstr "%s" {0..9} {a..z} {A..Z} @ _ 0
-    for ((_l=6;_num=(RANDOM<<15|RANDOM),_l--;));do
-	for ((_i=0;_i<30;_i+=6));do
-	    _out+=${_Bash64_refstr:(_num>>_i)&63:1}
+
+    # Generate boundary by looping BOUNDARY_ITERATIONS times
+    # Construct BOUNDARY_LENGTH chars by shifting and masking RANDOM values
+    for ((_l=BOUNDARY_ITERATIONS;_num=(RANDOM<<15|RANDOM),_l--;));do
+	for ((_i=0;_i<BOUNDARY_LENGTH;_i+=BOUNDARY_SHIFT));do
+	    _out+=${_Bash64_refstr:(_num>>_i)&BOUNDARY_MASK:1}
 	done
     done
+
+    # Format the output into "--xxxxxxx-xxxx-xxxx-xxxx-xxxx-xxxx-"
     printf -v result -- "--%s-%s-%s-%s-%s-%s-" ${_out:0:7} \
 	   ${_out:7:4} ${_out:11:4} ${_out:15:4} \
 	   ${_out:19:4} ${_out:23};
-}    
+}
+
 # instanciator for myXxx() function associated to a started and long-running
 # instance of the requested command and arguments and initial input data
 # (the command will be associated to two descriptors XXIN and XXOUT, local to
