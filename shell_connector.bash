@@ -283,8 +283,8 @@ mySqlReq() {
     lastsqlread="$line"
 
     # If there are any error messages available on the SQLERR file descriptor, read them into the `result_e` variable.
-    if read -u "$SQLERR" -t 0 ;then
-        while read -ru "$SQLERR" -t .02 line;do
+    if read -ru "$SQLERR" -t 0.02 ;then
+        while read -ru "$SQLERR" -t 0.02 line;do
             result_e+=("$line")
         done
     fi
