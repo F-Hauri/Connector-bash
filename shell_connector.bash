@@ -183,6 +183,7 @@ mySqlReq() {
     #
     # Synopsis:
     # mySqlReq result "SELECT * FROM table_name"
+    # echo "SELECT * FROM table_name" | mySqlReq result
     #
     # Parameters:
     # $1 - Name of the variable where the result of the SQL command will be stored.
@@ -198,16 +199,26 @@ mySqlReq() {
     # - The function waits indefinitely for the SQL client to respond.
     # - The function heavily depends on the `newSqlConnector` function to create the SQL client co-process.
     # - It can handle responses from different SQL clients like sqlite, mysql, mariadb, and postgresql.
+    # - It can read SQL commands from standard input if none are provided as arguments.
 
     # Initialize three variables for storing results, headers and any error messages.
     local -n result=$1 result_h=${1}_h result_e=${1}_e
-    result=() result_h=''  result_e=()
+    result=() result_h='' result_e=()
     local line head=""
     shift
 
-    # Send the SQL query to the SQL client co-process.
-    # Additionally, request the output of the unique boundary string which was defined in the `newSqlConnector` function.
-    printf >&$SQLIN '%s;\nSELECT '"${sqlreqbound}"' AS "%s";\n' "$@" $bound
+    # If SQL command is provided as argument, send it to the SQL client co-process.
+    # Otherwise, read SQL command from standard input and send it to the SQL client co-process.
+    if (($#)) ;then
+        printf >&$SQLIN '%s;\n' "${*%;}"
+    else
+        local -a _req
+        mapfile -t _req
+        printf >&$SQLIN '%s;\n' "${_req[*]%;}"
+    fi
+
+    # Request the output of the unique boundary string which was defined in the `newSqlConnector` function.
+    printf >&$SQLIN 'SELECT '"${sqlreqbound}"' AS "%s";\n' $bound
 
     # Read the first line of the response from the SQL client co-process.
     # If the first line is not the boundary string, it is the header of the response. Read and store it in `result_h`.
