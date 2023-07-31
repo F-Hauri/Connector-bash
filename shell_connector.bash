@@ -208,7 +208,7 @@ mySqlReq() {
     # Initialize three variables for storing results, headers and any error messages.
     local -n result=$1 result_h=${1}_h result_e=${1}_e
     result=() result_h='' result_e=()
-    local line head=""
+    local line
     shift
 
     # If SQL command is provided as argument, send it to the SQL client co-process.
