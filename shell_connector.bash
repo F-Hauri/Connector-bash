@@ -40,6 +40,10 @@ mkBound() {
 
     # Generate boundary by looping BOUNDARY_ITERATIONS times
     # Construct BOUNDARY_LENGTH chars by shifting and masking RANDOM values
+    # This is done by generating a pseudo-random number (_num) and then selecting a character from _Bash64_refstr
+    # based on the bits in _num. The bits are selected by shifting _num to the right by _i bits and then applying
+    # the BOUNDARY_MASK to select the least significant 6 bits. This is repeated BOUNDARY_LENGTH times to generate
+    # the boundary string.
     for ((_l=BOUNDARY_ITERATIONS;_num=(RANDOM<<15|RANDOM),_l--;));do
 	for ((_i=0;_i<BOUNDARY_LENGTH;_i+=BOUNDARY_SHIFT));do
 	    _out+=${_Bash64_refstr:(_num>>_i)&BOUNDARY_MASK:1}
@@ -188,9 +192,16 @@ newSqlConnector() {
 mySqlReq() {
     # mySqlReq() - Send SQL commands to the co-process SQL client and manages responses
     #
-    # This function takes the name of a variable as the first argument. It sends an SQL command
-    # to the SQL client and reads the response. The function doesn't return any value but populates 
-    # three variables: `$1`, containing sql answer, `${1}_h` containing header fields and `${1}_e` for errors, if any.
+    # This function takes the name of a variable as the first argument. It is designed to send an SQL command
+    # to an SQL client, read the response, and store this response into the variable specified by the first argument. 
+    # The function doesn't return any value but populates three variables based on the argument: `$1`, `${1}_h`, and `${1}_e`.
+    # The variable `$1` contains the SQL response, `${1}_h` stores the header fields, and `${1}_e` holds any errors, if they occur.
+    #
+    # The SQL command to be executed can be passed in two ways:
+    # 1. Directly as the second argument in the function call (e.g., mySqlReq result "SELECT * FROM table_name").
+    # 2. Piped into the function via standard input if no second argument is provided (e.g., echo "SELECT * FROM table_name" | mySqlReq result).
+    # When only the variable name is provided as an argument, the function waits for the SQL command from standard input.
+    # In both cases, the result of the SQL command execution is stored in the variables as described.
     #
     # Synopsis:
     #   mySqlReq result "SELECT * FROM table_name"
