@@ -140,31 +140,59 @@ newSqlConnector() {
 # newSqlConnector /usr/bin/mysql  '-h hostname -B -p database'
 
 mySqlReq() {
-    # return nothing but set two (or tree if error) variables: `$1`, containing
-    # sql answer and `${1}_h` containing header fields and ${1}_e for
-    # errors if        .
+    # mySqlReq() - Send SQL commands to the co-process SQL client and manages responses
+    #
+    # This function takes the name of a variable as the first argument. It sends an SQL command
+    # to the SQL client and reads the response. The function doesn't return any value but populates 
+    # three variables: `$1`, containing sql answer, `${1}_h` containing header fields and `${1}_e` for errors, if any.
+    #
+    # Synopsis:
+    # mySqlReq result "SELECT * FROM table_name"
+    #
+    # Parameters:
+    # $1 - Name of the variable where the result of the SQL command will be stored.
+    # $@ - SQL command to be executed.
+    #
+    # Returns:
+    # Does not return a value but populates `$1`, `${1}_h`, and `${1}_e` variables.
+    #
+    # Constants:
+    # sqlreqbound - A unique boundary string that separates command outputs from SQL outputs.
+    #
+    # Notes: 
+    # - The function waits indefinitely for the SQL client to respond.
+    # - The function heavily depends on the `newSqlConnector` function to create the SQL client co-process.
+    # - It can handle responses from different SQL clients like sqlite, mysql, mariadb, and postgresql.
+
+    # Initialize three variables for storing results, headers and any error messages.
     local -n result=$1 result_h=${1}_h result_e=${1}_e
     result=() result_h=''  result_e=()
     local line head=""
     shift
 
-    ### Send request and request for outputing bound...
+    # Send the SQL query to the SQL client co-process.
+    # Additionally, request the output of the unique boundary string which was defined in the `newSqlConnector` function.
     printf >&$SQLIN '%s;\nSELECT '"${sqlreqbound}"' AS "%s";\n' "$@" $bound
 
+    # Read the first line of the response from the SQL client co-process.
+    # If the first line is not the boundary string, it is the header of the response. Read and store it in `result_h`.
+    # Then, continue reading lines (which are the actual response data) until the boundary string is encountered.
     read -ru $SQLOUT line
     if [ "$line" != "$bound" ] ;then
-	IFS=$'\t' read -a result_h <<< "$line";
-	while read -ru $SQLOUT line && [ "$line" != "$bound" ] ;do
-	    result+=("$line")
-	done
+        IFS=$'\t' read -a result_h <<< "$line";
+        while read -ru $SQLOUT line && [ "$line" != "$bound" ] ;do
+            result+=("$line")
+        done
     fi
+
+    # Read and store the boundary string.
     read -ru $SQLOUT line
     lastsqlread="$line"
-    # then once bound readed without timeout, we could read SQLERR
-    # read -t 0 don't read, but success only if data available
+
+    # If there are any error messages available on the SQLERR file descriptor, read them into the `result_e` variable.
     if read -u $SQLERR -t 0 ;then
-	while read -ru $SQLERR -t .02 line;do
-	    result_e+=("$line")
-	done
+        while read -ru $SQLERR -t .02 line;do
+            result_e+=("$line")
+        done
     fi
 }
