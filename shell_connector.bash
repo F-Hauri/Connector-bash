@@ -35,7 +35,7 @@ mkBound() {
     local -n result=${1:-bound}
 
     # The string used for generating the boundary
-    local _Bash64_refstr _out= _l _i _num
+    local _Bash64_refstr _out='' _l _i _num
     printf -v _Bash64_refstr "%s" {0..9} {a..z} {A..Z} @ _ 0
 
     # Generate boundary by looping BOUNDARY_ITERATIONS times
@@ -90,6 +90,7 @@ newConnector() {
     # The output of the command is unbuffered (-o0 option to stdbuf)
     # This co-process can interact with the main process via its standard input and output
     coproc stdbuf -o0 "$command" "$args" 2>&1
+    # shellcheck disable=SC2034,SC2128
     cinfd=${COPROC[1]} coutfd=$COPROC 
 
     # Feed the initialization file to the command
@@ -100,6 +101,7 @@ newConnector() {
     # Dynamically create a function that sends input to the command and reads its output
     # The function name is 'my' followed by the capitalized command name (e.g., myBc, myDate)
     # The function takes one argument, sends it to the command, and reads the response into the 'result' variable
+    # shellcheck disable=SC1091
     source /dev/stdin <<-EOF
 	my${cmd^}() {
 	    local -n result=\${2:-${cmd}Out} # Name reference to the output variable
@@ -119,7 +121,9 @@ newConnector() {
     fi
 }
 
-declare bound sqlreqbound SQLIN SQLOUT SQLERR lastsqlread
+declare bound sqlreqbound SQLIN SQLOUT SQLERR
+# Store the last line read by newSqlConnector. For debugging purposes.
+declare lastsqlread
 
 newSqlConnector() {
     # newSqlConnector() - Establish a connection to a specified SQL client
@@ -175,6 +179,7 @@ newSqlConnector() {
     # Start the SQL client as a co-process, with its standard error redirected to `SQLERR`
     coproc stdbuf -o0 "$command" "${args[@]}" 2>&$SQLERR
     # Store the file descriptors for the co-process's standard input and output
+    # shellcheck disable=SC2128
     _sqlin=${COPROC[1]} _sqlout=$COPROC 
 }
 
@@ -229,6 +234,7 @@ mySqlReq() {
     # Then, continue reading lines (which are the actual response data) until the boundary string is encountered.
     read -ru "$SQLOUT" line
     if [ "$line" != "$bound" ] ;then
+        # shellcheck disable=SC2034
         IFS=$'\t' read -r -a result_h <<< "$line";
         while read -ru "$SQLOUT" line && [ "$line" != "$bound" ] ;do
             result+=("$line")
@@ -237,6 +243,7 @@ mySqlReq() {
 
     # Read and store the boundary string.
     read -ru "$SQLOUT" line
+    # shellcheck disable=SC2034
     lastsqlread="$line"
 
     # If there are any error messages available on the SQLERR file descriptor, read them into the `result_e` variable.
