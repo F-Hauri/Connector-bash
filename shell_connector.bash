@@ -57,7 +57,31 @@ mkBound() {
 # (the command will be associated to two descriptors XXIN and XXOUT, local to
 #  the instanciated function)
 newConnector() {
-    # Extract the provided arguments into local variables
+    # newConnector() - Initiates a long-running subprocess for a given command.
+    #
+    # This function sets up a long-running co-process using the provided command and arguments. It creates two
+    # file descriptors associated with the co-process to manage data interaction. It also creates a function
+    # dynamically that sends input to the command and reads its output.
+    #
+    # Parameters:
+    # command - The command to be run as a co-process.
+    # args - The arguments to be passed to the command.
+    # check - The initial input to be sent to the co-process for verification.
+    # verif - The expected output from the command when 'check' is sent as input.
+    #
+    # Returns:
+    # None directly. However, it prints a warning message to STDERR if the verification of the co-process fails.
+    #
+    # Constants:
+    # cinfd - File descriptor for input to the co-process.
+    # coutfd - File descriptor for output from the co-process.
+    #
+    # Notes: 
+    # - The function is named 'my' followed by the capitalized command name (e.g., myBc, myDate).
+    # - The function sends input to the command and reads the output into the 'result' variable.
+    # - The function prints the result to STDOUT if there is no second argument.
+    # - If the 'check' input does not yield the 'verif' output, a warning is printed to STDERR.
+
     local command="$1" cmd=${1##*/} args="$2" check="$3" verif="$4"
     shift 4
     local initfile input
