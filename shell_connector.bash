@@ -61,14 +61,16 @@ newConnector() {
     # 'Xxx' corresponds to the capitalized form of the command name.
     #
     # Synopsis:
-    #   newConnector "command" "command_args" "check_input" "expected_output"
-    #   newConnector "/path/to/command" "-arg1 -arg2" "initialization input" "expected response"
+    #   newConnector "command" "command_args" "check_input" "expected_output" ["timeout"]
+    #   newConnector "/path/to/command" "-arg1 -arg2" "initialization input" "expected response" [5]
     #
     # Parameters:
     #   command - The command to be run as a co-process.
     #   args - The arguments to be passed to the command.
     #   check - The initial input to be sent to the co-process for verification.
     #   verif - The expected output from the command when 'check' is sent as input.
+    #   timeout - (Optional) The number of seconds to wait for a response from the co-process. Defaults to 3 seconds.
+    #
     #
     # Returns:
     #   None directly. However, it prints a warning message to STDERR if the verification of the co-process fails.
@@ -81,8 +83,8 @@ newConnector() {
     #   - The function 'myXxx' sends input to the command and reads the output into the 'result' variable.
     #   - The function 'myXxx' prints the result to STDOUT if there is no second argument.
     #   - If the 'check' input does not yield the 'verif' output, a warning is printed to STDERR.
-    local command="$1" cmd=${1##*/} args="$2" check="$3" verif="$4"
-    shift 4
+    local command="$1" cmd=${1##*/} args="$2" check="$3" verif="$4" timeout="${5:-3}"
+    shift 5
     local initfile input
     local -n cinfd=${cmd^^}IN coutfd=${cmd^^}OUT
 
@@ -107,8 +109,8 @@ newConnector() {
 	    local -n result=\${2:-${cmd}Out} # Name reference to the output variable
 	    # Send input to the command
 	    echo >&\${${cmd^^}IN} "\$1" &&
-	    # Read the response with a timeout of 3 seconds
-	    read -u \${${cmd^^}OUT} -t 3 result
+	    # Read the response with a timeout of $timeout seconds
+	    read -u \${${cmd^^}OUT} -t "$timeout" result
 	    # If there is no second argument, print the result
 	    ((\$#>1)) || echo \$result
 	}
