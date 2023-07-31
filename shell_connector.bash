@@ -14,10 +14,10 @@ mkBound() {
     # "--xxxxxxx-xxxx-xxxx-xxxx-xxxx-xxxx-", where "x" stands for a random character.
     # 
     # Constants:
-    # BOUNDARY_LENGTH - The length of the boundary string to be generated.
-    # BOUNDARY_ITERATIONS - The number of iterations in the loop for generating the boundary string.
-    # BOUNDARY_MASK - The mask used for selecting bits from the pseudo-random numbers.
-    # BOUNDARY_SHIFT - The number of bits to shift for the next character in the boundary string.
+    #   BOUNDARY_LENGTH - The length of the boundary string to be generated.
+    #   BOUNDARY_ITERATIONS - The number of iterations in the loop for generating the boundary string.
+    #   BOUNDARY_MASK - The mask used for selecting bits from the pseudo-random numbers.
+    #   BOUNDARY_SHIFT - The number of bits to shift for the next character in the boundary string.
     # 
     # Notes: 
     # - Builds some uniq 30 random char string from 12 $RANDOM values:
@@ -60,23 +60,27 @@ newConnector() {
     # uppercase form of the command name. It also dynamically creates a function, named 'myXxx', to interact with the co-process.
     # 'Xxx' corresponds to the capitalized form of the command name.
     #
+    # Synopsis:
+    #   newConnector "command" "command_args" "check_input" "expected_output"
+    #   newConnector "/path/to/command" "-arg1 -arg2" "initialization input" "expected response"
+    #
     # Parameters:
-    # command - The command to be run as a co-process.
-    # args - The arguments to be passed to the command.
-    # check - The initial input to be sent to the co-process for verification.
-    # verif - The expected output from the command when 'check' is sent as input.
+    #   command - The command to be run as a co-process.
+    #   args - The arguments to be passed to the command.
+    #   check - The initial input to be sent to the co-process for verification.
+    #   verif - The expected output from the command when 'check' is sent as input.
     #
     # Returns:
-    # None directly. However, it prints a warning message to STDERR if the verification of the co-process fails.
+    #   None directly. However, it prints a warning message to STDERR if the verification of the co-process fails.
     #
     # Constants:
-    # cinfd - File descriptor for input to the co-process (XXIN).
-    # coutfd - File descriptor for output from the co-process (XXOUT).
+    #   cinfd - File descriptor for input to the co-process (XXIN).
+    #   coutfd - File descriptor for output from the co-process (XXOUT).
     #
     # Notes: 
-    # - The function 'myXxx' sends input to the command and reads the output into the 'result' variable.
-    # - The function 'myXxx' prints the result to STDOUT if there is no second argument.
-    # - If the 'check' input does not yield the 'verif' output, a warning is printed to STDERR.
+    #   - The function 'myXxx' sends input to the command and reads the output into the 'result' variable.
+    #   - The function 'myXxx' prints the result to STDOUT if there is no second argument.
+    #   - If the 'check' input does not yield the 'verif' output, a warning is printed to STDERR.
     local command="$1" cmd=${1##*/} args="$2" check="$3" verif="$4"
     shift 4
     local initfile input
@@ -126,22 +130,22 @@ newSqlConnector() {
     # The output length is not fixed and could be empty.
     # 
     # Synopsis:
-    # newSqlConnector /usr/bin/sqlite3 $'-separator \t -header /dev/shm/test.sqlite'
-    # newSqlConnector /usr/bin/psql $'-Anh hostname -F \t --pset=footer=off user'
-    # newSqlConnector /usr/bin/mysql  '-h hostname -B -p database'
+    #   newSqlConnector /usr/bin/sqlite3 $'-separator \t -header /dev/shm/test.sqlite'
+    #   newSqlConnector /usr/bin/psql $'-Anh hostname -F \t --pset=footer=off user'
+    #   newSqlConnector /usr/bin/mysql  '-h hostname -B -p database'
     #
     # Parameters:
-    # $1 (command) - The command to execute (i.e., the SQL client)
-    # $2 (args) - The command-line arguments for the SQL client
-    # $3 (check) and $4 (verif) - Not used in the current function scope
+    #   $1 (command) - The command to execute (i.e., the SQL client)
+    #   $2 (args) - The command-line arguments for the SQL client
+    #   $3 (check) and $4 (verif) - Not used in the current function scope
     # 
     # Returns:
-    # None directly. But it sets up SQL input and output file descriptors 
-    # for subsequent interaction with the SQL client.
+    #   None directly. But it sets up SQL input and output file descriptors 
+    #   for subsequent interaction with the SQL client.
     #
     # Constants:
-    # COPROC - Array variable from the coproc keyword in bash, holding the file descriptors for co-process.
-    # SQLERR - A file descriptor for the SQL client's error stream
+    #   COPROC - Array variable from the coproc keyword in bash, holding the file descriptors for co-process.
+    #   SQLERR - A file descriptor for the SQL client's error stream
     # 
     # Notes: 
     # - The function assumes that the command passed to it is an executable, 
@@ -182,18 +186,18 @@ mySqlReq() {
     # three variables: `$1`, containing sql answer, `${1}_h` containing header fields and `${1}_e` for errors, if any.
     #
     # Synopsis:
-    # mySqlReq result "SELECT * FROM table_name"
-    # echo "SELECT * FROM table_name" | mySqlReq result
+    #   mySqlReq result "SELECT * FROM table_name"
+    #   echo "SELECT * FROM table_name" | mySqlReq result
     #
     # Parameters:
-    # $1 - Name of the variable where the result of the SQL command will be stored.
-    # $@ - SQL command to be executed.
+    #   $1 - Name of the variable where the result of the SQL command will be stored.
+    #   $@ - SQL command to be executed.
     #
     # Returns:
-    # Does not return a value but populates `$1`, `${1}_h`, and `${1}_e` variables.
+    #   Does not return a value but populates `$1`, `${1}_h`, and `${1}_e` variables.
     #
     # Constants:
-    # sqlreqbound - A unique boundary string that separates command outputs from SQL outputs.
+    #   sqlreqbound - A unique boundary string that separates command outputs from SQL outputs.
     #
     # Notes: 
     # - The function waits indefinitely for the SQL client to respond.
