@@ -151,7 +151,7 @@ newSqlConnector() {
     # Take the SQL client command and command arguments as input
     local command="$1" cmd=${1##*/} args check="$3" verif="$4" COPROC
     # Split the command arguments
-    IFS=' ' read -a args <<<"$2"
+    IFS=' ' read -r -a args <<<"$2"
     # Create file descriptors for SQL input and output
     local -n _sqlin=SQLIN _sqlout=SQLOUT
     # Generate a unique boundary string
@@ -225,7 +225,7 @@ mySqlReq() {
     # Then, continue reading lines (which are the actual response data) until the boundary string is encountered.
     read -ru "$SQLOUT" line
     if [ "$line" != "$bound" ] ;then
-        IFS=$'\t' read -a result_h <<< "$line";
+        IFS=$'\t' read -r -a result_h <<< "$line";
         while read -ru "$SQLOUT" line && [ "$line" != "$bound" ] ;do
             result+=("$line")
         done
