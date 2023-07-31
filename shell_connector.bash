@@ -47,9 +47,9 @@ mkBound() {
     done
 
     # Format the output into "--xxxxxxx-xxxx-xxxx-xxxx-xxxx-xxxx-"
-    printf -v result -- "--%s-%s-%s-%s-%s-%s-" ${_out:0:7} \
-	   ${_out:7:4} ${_out:11:4} ${_out:15:4} \
-	   ${_out:19:4} ${_out:23};
+    printf -v result -- "--%s-%s-%s-%s-%s-%s-" "${_out:0:7}" \
+	   "${_out:7:4}" "${_out:11:4}" "${_out:15:4}" \
+	   "${_out:19:4}" "${_out:23}";
 }
 
 newConnector() {
@@ -85,12 +85,12 @@ newConnector() {
     # Start a new co-process using the provided command and arguments
     # The output of the command is unbuffered (-o0 option to stdbuf)
     # This co-process can interact with the main process via its standard input and output
-    coproc stdbuf -o0 $command $args 2>&1
+    coproc stdbuf -o0 "$command" "$args" 2>&1
     cinfd=${COPROC[1]} coutfd=$COPROC 
 
     # Feed the initialization file to the command
     for initfile ;do
-	cat >&${cinfd} $initfile
+	cat >&"${cinfd}" "$initfile"
     done
 
     # Dynamically create a function that sends input to the command and reads its output
@@ -109,7 +109,7 @@ newConnector() {
 	EOF
 
     # Check the command by sending the 'check' input and comparing the response to 'verif'
-    my${cmd^} $check input
+    my"${cmd^}" "$check" input
     if [ "$input" != "$verif" ]; then
 	printf >&2 "WARNING: Don't match! '%s' <> '%s'.\n" "$verif" "$input"
     fi
@@ -169,7 +169,7 @@ newSqlConnector() {
     # Create a new file descriptor for SQL error stream
     exec {SQLERR}<> <(: p)
     # Start the SQL client as a co-process, with its standard error redirected to `SQLERR`
-    coproc stdbuf -o0 $command "${args[@]}" 2>&$SQLERR
+    coproc stdbuf -o0 "$command" "${args[@]}" 2>&$SQLERR
     # Store the file descriptors for the co-process's standard input and output
     _sqlin=${COPROC[1]} _sqlout=$COPROC 
 }
@@ -210,34 +210,34 @@ mySqlReq() {
     # If SQL command is provided as argument, send it to the SQL client co-process.
     # Otherwise, read SQL command from standard input and send it to the SQL client co-process.
     if (($#)) ;then
-        printf >&$SQLIN '%s;\n' "${*%;}"
+        printf >&"$SQLIN" '%s;\n' "${*%;}"
     else
         local -a _req
         mapfile -t _req
-        printf >&$SQLIN '%s;\n' "${_req[*]%;}"
+        printf >&"$SQLIN" '%s;\n' "${_req[*]%;}"
     fi
 
     # Request the output of the unique boundary string which was defined in the `newSqlConnector` function.
-    printf >&$SQLIN 'SELECT '"${sqlreqbound}"' AS "%s";\n' $bound
+    printf >&"$SQLIN" 'SELECT '"${sqlreqbound}"' AS "%s";\n' "$bound"
 
     # Read the first line of the response from the SQL client co-process.
     # If the first line is not the boundary string, it is the header of the response. Read and store it in `result_h`.
     # Then, continue reading lines (which are the actual response data) until the boundary string is encountered.
-    read -ru $SQLOUT line
+    read -ru "$SQLOUT" line
     if [ "$line" != "$bound" ] ;then
         IFS=$'\t' read -a result_h <<< "$line";
-        while read -ru $SQLOUT line && [ "$line" != "$bound" ] ;do
+        while read -ru "$SQLOUT" line && [ "$line" != "$bound" ] ;do
             result+=("$line")
         done
     fi
 
     # Read and store the boundary string.
-    read -ru $SQLOUT line
+    read -ru "$SQLOUT" line
     lastsqlread="$line"
 
     # If there are any error messages available on the SQLERR file descriptor, read them into the `result_e` variable.
-    if read -u $SQLERR -t 0 ;then
-        while read -ru $SQLERR -t .02 line;do
+    if read -u "$SQLERR" -t 0 ;then
+        while read -ru "$SQLERR" -t .02 line;do
             result_e+=("$line")
         done
     fi
