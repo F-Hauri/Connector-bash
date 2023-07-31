@@ -52,16 +52,13 @@ mkBound() {
 	   ${_out:19:4} ${_out:23};
 }
 
-# instanciator for myXxx() function associated to a started and long-running
-# instance of the requested command and arguments and initial input data
-# (the command will be associated to two descriptors XXIN and XXOUT, local to
-#  the instanciated function)
 newConnector() {
-    # newConnector() - Initiates a long-running subprocess for a given command.
+    # newConnector() - Initiate a long-running subprocess for a given command and associates it with two file descriptors.
     #
     # This function sets up a long-running co-process using the provided command and arguments. It creates two
-    # file descriptors associated with the co-process to manage data interaction. It also creates a function
-    # dynamically that sends input to the command and reads its output.
+    # file descriptors XXIN and XXOUT associated with the co-process to manage data interaction, where 'XX' is the 
+    # uppercase form of the command name. It also dynamically creates a function, named 'myXxx', to interact with the co-process.
+    # 'Xxx' corresponds to the capitalized form of the command name.
     #
     # Parameters:
     # command - The command to be run as a co-process.
@@ -73,15 +70,13 @@ newConnector() {
     # None directly. However, it prints a warning message to STDERR if the verification of the co-process fails.
     #
     # Constants:
-    # cinfd - File descriptor for input to the co-process.
-    # coutfd - File descriptor for output from the co-process.
+    # cinfd - File descriptor for input to the co-process (XXIN).
+    # coutfd - File descriptor for output from the co-process (XXOUT).
     #
     # Notes: 
-    # - The function is named 'my' followed by the capitalized command name (e.g., myBc, myDate).
-    # - The function sends input to the command and reads the output into the 'result' variable.
-    # - The function prints the result to STDOUT if there is no second argument.
+    # - The function 'myXxx' sends input to the command and reads the output into the 'result' variable.
+    # - The function 'myXxx' prints the result to STDOUT if there is no second argument.
     # - If the 'check' input does not yield the 'verif' output, a warning is printed to STDERR.
-
     local command="$1" cmd=${1##*/} args="$2" check="$3" verif="$4"
     shift 4
     local initfile input
