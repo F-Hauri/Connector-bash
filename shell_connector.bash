@@ -115,29 +115,64 @@ newConnector() {
     fi
 }
 
-# SQL Connector
-# Stronger, because output length is not fixed, could by empty.
-# this work with "sqlite", but also with "mysql", "mariadb" or "postgresql"
 declare bound sqlreqbound SQLIN SQLOUT SQLERR lastsqlread
+
 newSqlConnector() {
+    # newSqlConnector() - Establish a connection to a specified SQL client
+    # 
+    # Establishes a long-running connection to an SQL client, 
+    # and prepares the environment necessary for executing SQL queries on that client.
+    # It supports SQLite, MySQL, MariaDB, and PostgreSQL.
+    # The output length is not fixed and could be empty.
+    # 
+    # Synopsis:
+    # newSqlConnector /usr/bin/sqlite3 $'-separator \t -header /dev/shm/test.sqlite'
+    # newSqlConnector /usr/bin/psql $'-Anh hostname -F \t --pset=footer=off user'
+    # newSqlConnector /usr/bin/mysql  '-h hostname -B -p database'
+    #
+    # Parameters:
+    # $1 (command) - The command to execute (i.e., the SQL client)
+    # $2 (args) - The command-line arguments for the SQL client
+    # $3 (check) and $4 (verif) - Not used in the current function scope
+    # 
+    # Returns:
+    # None directly. But it sets up SQL input and output file descriptors 
+    # for subsequent interaction with the SQL client.
+    #
+    # Constants:
+    # COPROC - Array variable from the coproc keyword in bash, holding the file descriptors for co-process.
+    # SQLERR - A file descriptor for the SQL client's error stream
+    # 
+    # Notes: 
+    # - The function assumes that the command passed to it is an executable, 
+    #   so it should be validated before calling this function.
+    # - If an unknown SQL client is passed, the function will print a warning but will not terminate.
+
+    # Take the SQL client command and command arguments as input
     local command="$1" cmd=${1##*/} args check="$3" verif="$4" COPROC
+    # Split the command arguments
     IFS=' ' read -a args <<<"$2"
+    # Create file descriptors for SQL input and output
     local -n _sqlin=SQLIN _sqlout=SQLOUT
+    # Generate a unique boundary string
     mkBound bound
+    # Determine the SQL client and set `sqlreqbound` for each client
     case $cmd in
 	psql ) sqlreqbound='EXTRACT(\047EPOCH\047 FROM now())' ;;
 	mysql|mariadb ) sqlreqbound='UNIX_TIMESTAMP()' ;;
 	sqlite* ) sqlreqbound='STRFTIME(\047%%s\047,DATETIME(\047now\047))' ;;
-	* ) echo >&2 "WARNING '$cmd' not known as SQL client";;
+	* ) 
+        # If the SQL client is not recognized, give a warning
+        echo >&2 "WARNING '$cmd' not known as SQL client";;
     esac
 
+    # Create a new file descriptor for SQL error stream
     exec {SQLERR}<> <(: p)
+    # Start the SQL client as a co-process, with its standard error redirected to `SQLERR`
     coproc stdbuf -o0 $command "${args[@]}" 2>&$SQLERR
+    # Store the file descriptors for the co-process's standard input and output
     _sqlin=${COPROC[1]} _sqlout=$COPROC 
 }
-# newSqlConnector /usr/bin/sqlite3 $'-separator \t -header /dev/shm/test.sqlite'
-# newSqlConnector /usr/bin/psql $'-Anh hostname -F \t --pset=footer=off user'
-# newSqlConnector /usr/bin/mysql  '-h hostname -B -p database'
 
 mySqlReq() {
     # mySqlReq() - Send SQL commands to the co-process SQL client and manages responses
