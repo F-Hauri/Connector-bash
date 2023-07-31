@@ -57,30 +57,43 @@ mkBound() {
 # (the command will be associated to two descriptors XXIN and XXOUT, local to
 #  the instanciated function)
 newConnector() {
+    # Extract the provided arguments into local variables
     local command="$1" cmd=${1##*/} args="$2" check="$3" verif="$4"
     shift 4
     local initfile input
     local -n cinfd=${cmd^^}IN coutfd=${cmd^^}OUT
 
+    # Start a new co-process using the provided command and arguments
+    # The output of the command is unbuffered (-o0 option to stdbuf)
+    # This co-process can interact with the main process via its standard input and output
     coproc stdbuf -o0 $command $args 2>&1
     cinfd=${COPROC[1]} coutfd=$COPROC 
 
+    # Feed the initialization file to the command
     for initfile ;do
 	cat >&${cinfd} $initfile
     done
 
+    # Dynamically create a function that sends input to the command and reads its output
+    # The function name is 'my' followed by the capitalized command name (e.g., myBc, myDate)
+    # The function takes one argument, sends it to the command, and reads the response into the 'result' variable
     source /dev/stdin <<-EOF
 	my${cmd^}() {
-	    local -n result=\${2:-${cmd}Out}
+	    local -n result=\${2:-${cmd}Out} # Name reference to the output variable
+	    # Send input to the command
 	    echo >&\${${cmd^^}IN} "\$1" &&
+	    # Read the response with a timeout of 3 seconds
 	    read -u \${${cmd^^}OUT} -t 3 result
+	    # If there is no second argument, print the result
 	    ((\$#>1)) || echo \$result
 	}
 	EOF
 
+    # Check the command by sending the 'check' input and comparing the response to 'verif'
     my${cmd^} $check input
-    [ "$input" = "$verif" ] ||
+    if [ "$input" != "$verif" ]; then
 	printf >&2 "WARNING: Don't match! '%s' <> '%s'.\n" "$verif" "$input"
+    fi
 }
 
 # SQL Connector
