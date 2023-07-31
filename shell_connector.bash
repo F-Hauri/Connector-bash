@@ -92,14 +92,14 @@ newConnector() {
     # 'Xxx' corresponds to the capitalized form of the command name.
     #
     # Synopsis:
-    #   newConnector "command" "command_args" "check_input" "expected_output" ["timeout"]
+    #   newConnector "command" "command_args" "check_input" "readiness_output" ["timeout"]
     #   newConnector "/path/to/command" "-arg1 -arg2" "initialization input" "expected response" [5]
     #
     # Parameters:
     #   command - The command to be run as a co-process.
     #   args - The arguments to be passed to the command.
     #   check - The initial input to be sent to the co-process for verification.
-    #   verif - The expected output from the command when 'check' is sent as input.
+    #   readiness_output - The expected output from the command when 'check' is sent as input.
     #   timeout - (Optional) The number of seconds to wait for a response from the co-process. Defaults to 3 seconds.
     #
     #
@@ -113,8 +113,8 @@ newConnector() {
     # Notes: 
     #   - The function 'myXxx' sends input to the command and reads the output into the 'result' variable.
     #   - The function 'myXxx' prints the result to STDOUT if there is no second argument.
-    #   - If the 'check' input does not yield the 'verif' output, a warning is printed to STDERR.
-    local command="$1" cmd=${1##*/} args="$2" check="$3" verif="$4" timeout="${5:-3}"
+    #   - If the 'check' input does not yield the 'readiness_output' string, a warning is printed to STDERR.
+    local command="$1" cmd=${1##*/} args="$2" check="$3" readiness_output="$4" timeout="${5:-3}"
     shift 5
     local initfile input
     local -n cinfd=${cmd^^}IN coutfd=${cmd^^}OUT
@@ -147,10 +147,10 @@ newConnector() {
 	}
 	EOF
 
-    # Check the command by sending the 'check' input and comparing the response to 'verif'
+    # Check the command by sending the 'check' input and comparing the response to 'readiness_output'
     my"${cmd^}" "$check" input
-    if [ "$input" != "$verif" ]; then
-	printf >&2 "WARNING: Don't match! '%s' <> '%s'.\n" "$verif" "$input"
+    if [ "$input" != "$readiness_output" ]; then
+	printf >&2 "WARNING: Don't match! '%s' <> '%s'.\n" "$readiness_output" "$input"
     fi
 }
 
@@ -170,7 +170,7 @@ newSqlConnector() {
     # Parameters:
     #   $1 (command) - The command to execute (i.e., the SQL client)
     #   $2 (args) - The command-line arguments for the SQL client
-    #   $3 (check) and $4 (verif) - Not used in the current function scope
+    #   $3 (check) and $4 (readiness_output) - Not used in the current function scope
     # 
     # Returns:
     #   None directly. But it sets up SQL input and output file descriptors 
@@ -186,7 +186,7 @@ newSqlConnector() {
     # - If an unknown SQL client is passed, the function will print a warning but will not terminate.
 
     # Take the SQL client command and command arguments as input
-    local command="$1" cmd=${1##*/} args check="$3" verif="$4" COPROC
+    local command="$1" cmd=${1##*/} args check="$3" readiness_output="$4" COPROC
     # Split the command arguments
     IFS=' ' read -r -a args <<<"$2"
     # Create file descriptors for SQL input and output
