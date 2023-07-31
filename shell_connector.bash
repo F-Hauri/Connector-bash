@@ -1,8 +1,29 @@
 #!/bin/bash
 
 mkBound() {
-    # Build some uniq 30 random char string from 12 $RANDOM values:
-    # RANDOM is 15 bits. 15 x 2 = 30 bits -> 5 x 6 bits char
+    # mkBound() - Generate a unique boundary string
+    # 
+    # This function generates a unique boundary string that is used to delimit the output 
+    # from sub-commands executed as co-processes, especially useful for SQL responses with variable length.
+    # 
+    # Parameters:
+    # $1 (optional) - The name of the variable that will hold the generated boundary string. 
+    #                 If not provided, defaults to a variable named "bound".
+    # 
+    # The generated boundary string is a sequence of 30 random alphanumeric characters and has the format: 
+    # "--xxxxxxx-xxxx-xxxx-xxxx-xxxx-xxxx-", where "x" stands for a random character.
+    # 
+    # Constants:
+    # BOUNDARY_LENGTH - The length of the boundary string to be generated.
+    # BOUNDARY_ITERATIONS - The number of iterations in the loop for generating the boundary string.
+    # BOUNDARY_MASK - The mask used for selecting bits from the pseudo-random numbers.
+    # BOUNDARY_SHIFT - The number of bits to shift for the next character in the boundary string.
+    # 
+    # Notes: 
+    # - Builds some uniq 30 random char string from 12 $RANDOM values:
+    #   RANDOM is 15 bits. 15 x 2 = 30 bits -> 5 x 6 bits char
+    # - The function uses bash's $RANDOM to generate pseudo-random numbers. This may not be suitable for 
+    #   applications that require cryptographically strong random numbers.
 
     # Constants for boundary construction
     local BOUNDARY_LENGTH=30
