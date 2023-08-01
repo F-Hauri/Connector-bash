@@ -241,15 +241,15 @@ mySqlReq() {
     #   sqlreqbound - A unique boundary string that separates command outputs from SQL outputs.
     #
     # Notes: 
-    # - The function waits indefinitely for the SQL client to respond.
     # - The function heavily depends on the `newSqlConnector` function to create the SQL client co-process.
     # - It can handle responses from different SQL clients like sqlite, mysql, mariadb, and postgresql.
-    # - It can read SQL commands from standard input if none are provided as arguments.
 
     # Initialize three variables for storing results, headers and any error messages.
     local -n result=$1 result_h=${1}_h result_e=${1}_e
     result=() result_h='' result_e=()
     local line
+    # Set a timeout for reading from the SQL client co-process (in seconds).
+    local timeout=0.02
     shift
 
     # If SQL command is provided as argument, send it to the SQL client co-process.
@@ -265,27 +265,28 @@ mySqlReq() {
     # Request the output of the unique boundary string which was defined in the `newSqlConnector` function.
     printf >&"$SQLIN" 'SELECT '"${sqlreqbound}"' AS "%s";\n' "$bound"
 
-    # Read the first line of the response from the SQL client co-process.
-    # If the first line is not the boundary string, it is the header of the response. Read and store it in `result_h`.
-    # Then, continue reading lines (which are the actual response data) until the boundary string is encountered.
-    read -ru "$SQLOUT" line
-    if [ "$line" != "$bound" ] ;then
+    # Read the response from the SQL client co-process.
+    local isFirstLine=true
+    while read -ru "$SQLOUT" -t "$timeout" line; do
+        # If the current line is equal to the boundary, break the loop
+        if [ "$line" = "$bound" ]; then
+            break
+        fi
+        if $isFirstLine; then
+            # If the current line is the first line, store it in result_h and set isFirstLine to false
         # shellcheck disable=SC2034
-        IFS=$'\t' read -r -a result_h <<< "$line";
-        while read -ru "$SQLOUT" line && [ "$line" != "$bound" ] ;do
+            IFS=$'\t' read -r -a result_h <<< "$line"
+            isFirstLine=false
+        else
+            # If the current line is not the first line, append it to the result array
             result+=("$line")
+        fi
         done
-    fi
-
-    # Read and store the boundary string.
-    read -ru "$SQLOUT" line
     # shellcheck disable=SC2034
     lastsqlread="$line"
 
     # If there are any error messages available on the SQLERR file descriptor, read them into the `result_e` variable.
-    if read -ru "$SQLERR" -t 0.02 ;then
-        while read -ru "$SQLERR" -t 0.02 line;do
+    while read -ru "$SQLERR" -t "$timeout" line; do
             result_e+=("$line")
         done
-    fi
 }
